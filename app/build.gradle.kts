@@ -91,8 +91,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
 
-    implementation(libs.coil.compose)
-    implementation(libs.coil.okhttp)
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.retrofit)
@@ -104,13 +102,6 @@ dependencies {
     implementation(libs.material.icons.extended)
     implementation(libs.hilt.navigation.compose)
 
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.supabase.realtime)
-    implementation(libs.supabase.storage)
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.content.negotiation)
 
     implementation(libs.accompanist.permissions)
     implementation(libs.camera.core)
@@ -119,6 +110,7 @@ dependencies {
     implementation(libs.camera.video)
     implementation(libs.camera.view)
     implementation(libs.guava)
+    implementation(libs.glide)
     implementation(libs.mlkit.text.recognition)
 
 

@@ -29,10 +29,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
+import com.bumptech.glide.integration.compose.GlideImage
 
+@OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 fun SignUpScreen(
     viewModel: SignUpViewModel = hiltViewModel(),
@@ -92,45 +92,42 @@ fun SignUpScreen(
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // Profile Image Picker
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                        .clickable { imagePickerLauncher.launch("image/*") },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (uiState.imageUri != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(uiState.imageUri)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Profile Image",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Add Profile Picture",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
-
-                Text(
-                    text = "Add Profile Picture",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
+//
+//                // Profile Image Picker
+//                Box(
+//                    modifier = Modifier
+//                        .size(120.dp)
+//                        .clip(CircleShape)
+//                        .background(MaterialTheme.colorScheme.surface)
+//                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+//                        .clickable { imagePickerLauncher.launch("image/*") },
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    if (uiState.imageUri != null) {
+//                        GlideImage(
+//                            model = uiState.imageUri,
+//                            contentDescription = "Profile Image",
+//                            contentScale = ContentScale.Crop,
+//                            modifier = Modifier.fillMaxSize()
+//                        )
+//                    } else {
+//                        Icon(
+//                            imageVector = Icons.Default.Person,
+//                            contentDescription = "Add Profile Picture",
+//                            tint = MaterialTheme.colorScheme.primary,
+//                            modifier = Modifier.size(40.dp)
+//                        )
+//                    }
+//                }
+//
+//                Text(
+//                    text = "Add Profile Picture",
+//                    style = MaterialTheme.typography.bodySmall,
+//                    color = MaterialTheme.colorScheme.primary,
+//                    modifier = Modifier.padding(top = 8.dp)
+//                )
+//
+//                Spacer(modifier = Modifier.height(24.dp))
 
                 // Form Card
                 Card(

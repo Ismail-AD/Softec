@@ -27,3 +27,15 @@ enum class TaskCategory {
     FINANCE,
     OTHER
 }
+
+enum class TaskCategoryGeneral {
+    ALL,
+    GENERAL,
+    WORK,
+    PERSONAL,
+    SHOPPING,
+    HEALTH,
+    EDUCATION,
+    FINANCE,
+    OTHER
+}

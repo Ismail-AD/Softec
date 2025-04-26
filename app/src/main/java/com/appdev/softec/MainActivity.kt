@@ -29,12 +29,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val userId= firebaseAuth.currentUser?.uid ?:""
+        val userId = firebaseAuth.currentUser?.uid ?: ""
         enableEdgeToEdge()
         setContent {
-            val viewModel: CustomizationViewModel = hiltViewModel()
-            val customizationState by viewModel.customizationState.collectAsState()
-            SoftecTheme(isDarkMode = customizationState.isDarkMode) {
+            SoftecTheme() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     NavGraph(userId)
                 }

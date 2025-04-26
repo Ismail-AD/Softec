@@ -1,20 +1,14 @@
 package com.appdev.softec.presentation.feature.setting
 
-
-import android.Manifest
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,63 +29,91 @@ fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
             text = "Customization Options",
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
 
-        Divider()
+        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
         // Dark Mode Toggle
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Dark Mode", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Dark Mode",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
 
             Switch(
                 checked = customizationState.isDarkMode,
-                onCheckedChange = { viewModel.setDarkMode(it) }
+                onCheckedChange = { viewModel.setDarkMode(it) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             )
         }
 
-        Divider()
+        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
         // Font Size Selection
-        Text(text = "Font Size", style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "Font Size",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
         Column(modifier = Modifier.fillMaxWidth()) {
             FontSize.entries.forEach { fontSize ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
                         selected = customizationState.fontSize == fontSize,
-                        onClick = { viewModel.setFontSize(fontSize) }
+                        onClick = { viewModel.setFontSize(fontSize) },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary,
+                            unselectedColor = MaterialTheme.colorScheme.outline
+                        )
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
                         text = fontSize.name.lowercase().capitalize(),
-                        fontSize = fontSize.size.sp
+                        fontSize = fontSize.size.sp,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
         }
 
-        Divider()
+        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
         // Layout Type Selection
-        Text(text = "Layout Type", style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "Layout Type",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
@@ -100,15 +122,17 @@ fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
             items(LayoutType.entries.toTypedArray()) { layoutType ->
                 val isSelected = customizationState.layoutType == layoutType
 
-                Card(
+                Surface(
                     modifier = Modifier
                         .width(100.dp)
-                        .height(80.dp)
+                        .height(70.dp)
                         .clickable { viewModel.setLayoutType(layoutType) },
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = if (isSelected) 8.dp else 2.dp
-                    ),
-                    border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    else MaterialTheme.colorScheme.surface,
+                    border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                    else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 ) {
                     Column(
                         modifier = Modifier
@@ -120,17 +144,23 @@ fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
                         // Layout icon would go here in real app
                         Text(
                             text = layoutType.name.lowercase().capitalize(),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
             }
         }
 
-        Divider()
+        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
         // Notification Style Selection
-        Text(text = "Notification Style", style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "Notification Style",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
         Column(modifier = Modifier.fillMaxWidth()) {
             NotificationStyle.entries.forEach { style ->
@@ -143,7 +173,11 @@ fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
                 ) {
                     RadioButton(
                         selected = customizationState.notificationStyle == style,
-                        onClick = { viewModel.setNotificationStyle(style) }
+                        onClick = { viewModel.setNotificationStyle(style) },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary,
+                            unselectedColor = MaterialTheme.colorScheme.outline
+                        )
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -151,11 +185,13 @@ fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
                     Column {
                         Text(
                             text = style.name.lowercase().replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
                             text = getNotificationDescription(style),
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -164,7 +200,6 @@ fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
     }
 }
 
-// Helper function to get notification style descriptions
 @Composable
 fun getNotificationDescription(style: NotificationStyle): String {
     return when (style) {

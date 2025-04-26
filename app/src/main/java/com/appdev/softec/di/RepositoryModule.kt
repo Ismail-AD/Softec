@@ -1,9 +1,11 @@
 package com.appdev.softec.di
 
 import com.appdev.softec.data.repository.LoginRepositoryImpl
+import com.appdev.softec.data.repository.MoodRepositoryImpl
 import com.appdev.softec.data.repository.SignUpRepositoryImpl
 import com.appdev.softec.data.repository.TaskRepositoryImpl
 import com.appdev.softec.domain.repository.LoginRepository
+import com.appdev.softec.domain.repository.MoodRepository
 import com.appdev.softec.domain.repository.SignUpRepository
 import com.appdev.softec.domain.repository.TaskRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -12,7 +14,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.jan.supabase.SupabaseClient
 import javax.inject.Singleton
 
 @Module
@@ -31,14 +32,19 @@ object RepositoryModule {
         return TaskRepositoryImpl(firestore,firebaseAuth)
     }
 
+    @Provides
+    @Singleton
+    fun provideMoodRepository(firebaseAuth: FirebaseAuth,firestore: FirebaseFirestore): MoodRepository {
+        return MoodRepositoryImpl(firestore,firebaseAuth)
+    }
+
 
     @Provides
     @Singleton
     fun provideSignUpRepository(
         firebaseAuth: FirebaseAuth,
-        firestore: FirebaseFirestore,
-        supabaseClient: SupabaseClient
+        firestore: FirebaseFirestore
     ): SignUpRepository {
-        return SignUpRepositoryImpl(firebaseAuth, firestore, supabaseClient)
+        return SignUpRepositoryImpl(firebaseAuth, firestore)
     }
 }

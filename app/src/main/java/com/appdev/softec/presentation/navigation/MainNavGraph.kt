@@ -23,8 +23,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.appdev.softec.presentation.feature.Mood.MoodJournalScreen
+import com.appdev.softec.presentation.feature.setting.CustomizationScreen
 import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.CreateTaskScreen
 import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.TaskCategory
+import com.appdev.softec.presentation.feature.taskManagement.TasksList.TaskListScreen
 
 @Composable
 fun MainScreen(onLogout: () -> Unit = {}) {
@@ -32,26 +35,35 @@ fun MainScreen(onLogout: () -> Unit = {}) {
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
+    val hideBottomBarRoutes = listOf(
+        Routes.TaskCreation.route
+    )
+
     // Define navigation items with icons
     val bottomNavItems = listOf(
         BottomNavItem(
             route = Routes.HomePage.route,
-            icon = { Icon(Icons.Default.Inventory, contentDescription = "Inventory") },
+            icon = { Icon(Icons.Default.Inventory, contentDescription = "Home") },
             label = "Inventory"
         ),
         BottomNavItem(
-            route = Routes.TaskCreation.route,
-            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Sales") },
+            route = Routes.TaskList.route,
+            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Tasks") },
             label = "Sales"
         ),
         BottomNavItem(
-            route = Routes.TaskList.route,
+            route = Routes.MoodJournal.route,
             icon = { Icon(Icons.Default.BarChart, contentDescription = "Reports") },
             label = "Reports"
         ),
         BottomNavItem(
             route = Routes.Calendar.route,
-            icon = { Icon(Icons.Default.SupervisedUserCircle, contentDescription = "More") },
+            icon = {
+                Icon(
+                    Icons.Default.SupervisedUserCircle,
+                    contentDescription = "Mood Journal"
+                )
+            },
             label = "Staff"
         ),
         BottomNavItem(
@@ -64,17 +76,24 @@ fun MainScreen(onLogout: () -> Unit = {}) {
 
     Scaffold(
         bottomBar = {
-//            if (currentRoute !in hideBottomBarRoutes) {
+            if (currentRoute !in hideBottomBarRoutes) {
             BottomNavigation(navController, bottomNavItems)
-//            }
+            }
         }
     ) { innerPadding ->
 
         NavHost(
             navController = navController,
             startDestination = Routes.HomePage.route,
-            modifier = Modifier.padding(innerPadding)
         ) {
+
+            composable(Routes.TaskList.route) {
+                TaskListScreen(onTaskClick = {
+
+                }, onAddTaskClick = {
+                    navController.navigate(Routes.TaskCreation.route)
+                })
+            }
 
             composable(Routes.TaskCreation.route) {
                 CreateTaskScreen(onNavigateBack = {
@@ -87,6 +106,13 @@ fun MainScreen(onLogout: () -> Unit = {}) {
                 HomePage()
             }
 
+            composable(Routes.Settings.route) {
+                CustomizationScreen()
+            }
+            composable(Routes.MoodJournal.route) {
+                MoodJournalScreen { }
+            }
+
 
         }
     }
@@ -94,7 +120,7 @@ fun MainScreen(onLogout: () -> Unit = {}) {
 }
 
 @Composable
-fun HomePage(){
+fun HomePage() {
 
 }
 

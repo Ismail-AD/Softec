@@ -6,6 +6,7 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.appdev.softec.BuildConfig
@@ -26,8 +27,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.json.JSONObject
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -43,21 +48,13 @@ class TaskViewModel @Inject constructor(
 
     // Initialize Gemini API client with your API key
     private val generativeModel = GenerativeModel(
-        modelName = "gemini-pro",
-        apiKey = BuildConfig.GEMINI_KEY,
-        generationConfig = generationConfig {
-            temperature = 0.2f
-            topK = 1
-            topP = 0.8f
-            maxOutputTokens = 100
-        }
+        modelName = "gemini-1.5-flash",
+        apiKey = BuildConfig.GEMINI_KEY
     )
 
+    // Simply update the text without AI processing
     fun updateTaskText(text: String) {
         _uiState.update { it.copy(taskText = text) }
-        if (text.isNotBlank() && text.length > 3) {
-            detectCategoryFromText(text)
-        }
     }
 
     fun updateCategory(category: TaskCategory) {
@@ -80,12 +77,10 @@ class TaskViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 taskText = recognizedText,
-                isVoiceInputActive = false,
-                isProcessingInput = true
+                isVoiceInputActive = false
             )
         }
-
-        detectCategoryFromText(recognizedText)
+        // We don't run AI processing here, just set the text
     }
 
     fun processCameraInput(imageUri: Uri) {
@@ -107,7 +102,7 @@ class TaskViewModel @Inject constructor(
                             isProcessingInput = false
                         )
                     }
-                    detectCategoryFromText(extractedText)
+                    // No AI processing here
                 } else {
                     _uiState.update {
                         it.copy(
@@ -172,58 +167,194 @@ class TaskViewModel @Inject constructor(
             }
     }
 
-    private fun detectCategoryFromText(text: String) {
+    private suspend fun detectCategoryFromText(text: String): TaskCategory {
+        try {
+            _uiState.update { it.copy(isProcessingInput = true) }
+
+            // Generate the prompt for Gemini
+            val prompt = """
+                Analyze the following task description and categorize it into exactly one of these categories:
+                GENERAL, WORK, PERSONAL, SHOPPING, HEALTH, EDUCATION, FINANCE, OTHER
+                
+                Task description: "$text"
+                
+                Return only the category name in uppercase without any explanation.
+            """.trimIndent()
+
+            // Make API call to Gemini
+            val response = generativeModel.generateContent(prompt).text?.trim() ?: "GENERAL"
+
+            // Parse the response and return category
+            return try {
+                TaskCategory.valueOf(response)
+            } catch (e: IllegalArgumentException) {
+                // If the response doesn't match a category, fallback to GENERAL
+                TaskCategory.GENERAL
+            } finally {
+                _uiState.update { it.copy(isProcessingInput = false) }
+            }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(
+                    isProcessingInput = false,
+                    errorMessage = "Error detecting category: ${e.localizedMessage}"
+                )
+            }
+            return TaskCategory.GENERAL
+        }
+    }
+
+    // New function to extract structured data from natural language input
+    private suspend fun processNaturalLanguageInput(text: String): NaturalLanguageResult {
+        try {
+            // Generate the prompt for Gemini to extract structured data
+            val prompt = """
+                Parse the following natural language task description and extract structured information.
+                Task description: "$text"
+                
+                Return a JSON object with these properties:
+                1. "taskText": The core task description without any date/time information
+                2. "dueDate": Date in ISO format (YYYY-MM-DD) if specified, or null if not specified
+                3. "dueTime": Time in 24h format (HH:MM) if specified, or null if not specified
+                4. "priority": Extract priority level if mentioned (HIGH, MEDIUM, LOW), or "MEDIUM" if not specified
+                5. "category": Best matching category from these options: GENERAL, WORK, PERSONAL, SHOPPING, HEALTH, EDUCATION, FINANCE, OTHER
+                
+                Example response format:
+                {
+                  "taskText": "Buy milk",
+                  "dueDate": "2023-05-15",
+                  "dueTime": "09:00",
+                  "priority": "MEDIUM",
+                  "category": "SHOPPING"
+                }
+                
+                If no date is specified but there are relative time words like "tomorrow", "next week", "tonight", convert them to actual dates relative to today.
+                Return ONLY the JSON with no additional text.
+            """.trimIndent()
+
+            // Make API call to Gemini
+            val response = generativeModel.generateContent(prompt).text?.trim() ?: return NaturalLanguageResult()
+
+            // Parse the JSON response
+            return try {
+                val jsonResponse = JSONObject(response)
+
+                // Parse due date string to timestamp if present
+                val dueDateStr = if (jsonResponse.has("dueDate") && !jsonResponse.isNull("dueDate"))
+                    jsonResponse.getString("dueDate") else null
+                val dueTimeStr = if (jsonResponse.has("dueTime") && !jsonResponse.isNull("dueTime"))
+                    jsonResponse.getString("dueTime") else null
+
+                // Calculate timestamp from date and time if present
+                val dueTimestamp = calculateTimestamp(dueDateStr, dueTimeStr)
+
+                // Get category
+                val categoryStr = if (jsonResponse.has("category")) jsonResponse.getString("category") else "GENERAL"
+                val category = try {
+                    TaskCategory.valueOf(categoryStr)
+                } catch (e: IllegalArgumentException) {
+                    TaskCategory.GENERAL
+                }
+
+                // Extract core task text
+                val taskText = if (jsonResponse.has("taskText")) jsonResponse.getString("taskText") else text
+                Log.d("CHKAZQ","${taskText}  ${categoryStr}")
+
+                NaturalLanguageResult(
+                    taskText = taskText,
+                    category = category,
+                    dueDate = dueTimestamp
+                )
+            } catch (e: Exception) {
+                NaturalLanguageResult(taskText = text)
+            }
+        } catch (e: Exception) {
+            return NaturalLanguageResult(taskText = text)
+        }
+    }
+
+    private fun calculateTimestamp(dateStr: String?, timeStr: String?): Long? {
+        if (dateStr == null) return null
+
+        try {
+            val calendar = Calendar.getInstance()
+
+            // Parse date
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val date = dateFormat.parse(dateStr)
+
+            if (date != null) {
+                calendar.time = date
+
+                // Add time if available
+                if (timeStr != null) {
+                    val timeParts = timeStr.split(":")
+                    if (timeParts.size == 2) {
+                        val hour = timeParts[0].toIntOrNull() ?: 0
+                        val minute = timeParts[1].toIntOrNull() ?: 0
+
+                        calendar.set(Calendar.HOUR_OF_DAY, hour)
+                        calendar.set(Calendar.MINUTE, minute)
+                    }
+                } else {
+                    // Default to 9:00 AM if no time specified
+                    calendar.set(Calendar.HOUR_OF_DAY, 9)
+                    calendar.set(Calendar.MINUTE, 0)
+                }
+
+                return calendar.timeInMillis
+            }
+        } catch (e: Exception) {
+            // If parsing fails, return null
+        }
+
+        return null
+    }
+
+    // Natural Language Processing result data class
+    data class NaturalLanguageResult(
+        val taskText: String = "",
+        val category: TaskCategory = TaskCategory.GENERAL,
+        val dueDate: Long? = null
+    )
+
+    // New function to prepare and save task with natural language processing
+    fun prepareAndSaveTask() {
+        if (!validateTask()) return
+
+        _uiState.update { it.copy(isLoading = true, isProcessingInput = true) }
+
         viewModelScope.launch {
             try {
-                _uiState.update { it.copy(isProcessingInput = true) }
+                if (uiState.value.taskText.isNotBlank()) {
+                    // First, process natural language to extract structured data
+                    val nlpResult = processNaturalLanguageInput(uiState.value.taskText)
 
-                // Generate the prompt for Gemini
-                val prompt = """
-                    Analyze the following task description and categorize it into exactly one of these categories:
-                    GENERAL, WORK, PERSONAL, SHOPPING, HEALTH, EDUCATION, FINANCE, OTHER
-                    
-                    Task description: "$text"
-                    
-                    Return only the category name in uppercase without any explanation.
-                """.trimIndent()
-
-                // Make API call to Gemini
-                val response = generativeModel.generateContent(prompt).text?.trim() ?: "GENERAL"
-
-                // Parse the response and update state
-                try {
-                    val detectedCategory = TaskCategory.valueOf(response)
-                    _uiState.update {
-                        it.copy(
-                            category = detectedCategory,
-                            isProcessingInput = false
+                    // Update UI state with the extracted data
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            taskText = nlpResult.taskText,
+                            category = nlpResult.category,
+                            dueDate = nlpResult.dueDate ?: currentState.dueDate
                         )
                     }
-                } catch (e: IllegalArgumentException) {
-                    // If the response doesn't match a category, fallback to GENERAL
-                    _uiState.update {
-                        it.copy(
-                            category = TaskCategory.GENERAL,
-                            isProcessingInput = false
-                        )
-                    }
+
+                    // Save the task with the structured data
+                    saveTaskToRepository()
                 }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
+                        isLoading = false,
                         isProcessingInput = false,
-                        errorMessage = "Error detecting category: ${e.localizedMessage}"
+                        errorMessage = "Error processing natural language: ${e.localizedMessage}"
                     )
                 }
             }
         }
     }
 
-    fun saveTask() {
-        if (!validateTask()) return
-
-        _uiState.update { it.copy(isLoading = true) }
-
+    private fun saveTaskToRepository() {
         viewModelScope.launch {
             val taskData = mapUiStateToTaskData()
 
@@ -235,6 +366,7 @@ class TaskViewModel @Inject constructor(
                     is ResultState.Success -> {
                         _uiState.update { it.copy(
                             isLoading = false,
+                            isProcessingInput = false,
                             success = true,
                             errorMessage = ""
                         )}
@@ -242,6 +374,7 @@ class TaskViewModel @Inject constructor(
                     is ResultState.Failure -> {
                         _uiState.update { it.copy(
                             isLoading = false,
+                            isProcessingInput = false,
                             success = false,
                             errorMessage = result.message.localizedMessage ?: "Failed to save task"
                         )}
@@ -268,6 +401,11 @@ class TaskViewModel @Inject constructor(
             return false
         }
         return true
+    }
+
+    // Keep original saveTask for backward compatibility
+    fun saveTask() {
+        prepareAndSaveTask()
     }
 
     fun resetState() {

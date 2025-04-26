@@ -42,6 +42,7 @@ import android.speech.RecognizerIntent
 import android.content.Intent
 import android.speech.SpeechRecognizer
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
@@ -52,6 +53,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.appdev.softec.presentation.components.PermissionRationalDialogs
+import com.google.accompanist.permissions.shouldShowRationale
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +79,10 @@ fun CreateTaskScreen(
     val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
     val microphonePermissionState = rememberPermissionState(permission = Manifest.permission.RECORD_AUDIO)
 
+    // Permission dialog states
+    var showCameraRationale by rememberSaveable { mutableStateOf(false) }
+    var showMicrophoneRationale by rememberSaveable { mutableStateOf(false) }
+
     // For camera
     val imageCapture = remember { ImageCapture.Builder().build() }
     val executor = ContextCompat.getMainExecutor(context)
@@ -83,17 +91,39 @@ fun CreateTaskScreen(
     val speechRecognizerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            // Extract the result directly from the intent
-            val spokenText: ArrayList<String>? = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+        Log.d("SpeechRecognizer", "Got result with code: ${result.resultCode}")
 
-            // Handle the result: get the first recognized text or fallback to an empty string
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val spokenText: ArrayList<String>? = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            Log.d("SpeechRecognizer", "Results: $spokenText")
+
             val recognizedText = spokenText?.firstOrNull() ?: ""
+            Log.d("SpeechRecognizer", "Using recognized text: $recognizedText")
             viewModel.processVoiceInput(recognizedText)
+        } else {
+            Log.d("SpeechRecognizer", "Speech recognition failed or was cancelled")
         }
     }
 
+    if (showCameraRationale) {
+        PermissionRationalDialogs.CameraPermissionDialog(
+            onDismiss = { showCameraRationale = false },
+            onRequestPermission = {
+                showCameraRationale = false
+                cameraPermissionState.launchPermissionRequest()
+            }
+        )
+    }
 
+    if (showMicrophoneRationale) {
+        PermissionRationalDialogs.MicrophonePermissionDialog(
+            onDismiss = { showMicrophoneRationale = false },
+            onRequestPermission = {
+                showMicrophoneRationale = false
+                microphonePermissionState.launchPermissionRequest()
+            }
+        )
+    }
 
 
     // Effects
@@ -156,11 +186,15 @@ fun CreateTaskScreen(
                             // Voice input button
                             IconButton(
                                 onClick = {
-                                    if (microphonePermissionState.status.isGranted) {
-                                        startVoiceRecognition(context, speechRecognizerLauncher)
-                                    } else {
-                                        microphonePermissionState.launchPermissionRequest()
-                                    }
+                                    Log.d("VoiceInput", "Mic button clicked")
+                                    handleMicrophonePermission(
+                                        permissionState = microphonePermissionState,
+                                        onShowRationale = { showMicrophoneRationale = true },
+                                        onPermissionGranted = {
+                                            Log.d("VoiceInput", "Microphone permission is granted, starting voice recognition")
+                                            startVoiceRecognition(context, speechRecognizerLauncher)
+                                        }
+                                    )
                                 }
                             ) {
                                 Icon(
@@ -172,11 +206,11 @@ fun CreateTaskScreen(
                             // Camera button
                             IconButton(
                                 onClick = {
-                                    if (cameraPermissionState.status.isGranted) {
-                                        viewModel.toggleCameraActive()
-                                    } else {
-                                        cameraPermissionState.launchPermissionRequest()
-                                    }
+                                    handleCameraPermission(
+                                        permissionState = cameraPermissionState,
+                                        onShowRationale = { showCameraRationale = true },
+                                        onPermissionGranted = { viewModel.toggleCameraActive() }
+                                    )
                                 }
                             ) {
                                 Icon(
@@ -184,6 +218,7 @@ fun CreateTaskScreen(
                                     contentDescription = "Camera"
                                 )
                             }
+
                         }
                     }
                 )
@@ -467,6 +502,12 @@ private fun startVoiceRecognition(
     context: Context,
     launcher: ManagedActivityResultLauncher<Intent, ActivityResult>
 ) {
+    // First check if speech recognition is available
+    if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+        Toast.makeText(context, "Speech recognition not available on this device", Toast.LENGTH_SHORT).show()
+        return
+    }
+
     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your task")
@@ -476,6 +517,59 @@ private fun startVoiceRecognition(
     try {
         launcher.launch(intent)
     } catch (e: Exception) {
-        Toast.makeText(context, "Voice recognition not available on this device", Toast.LENGTH_SHORT).show()
+        Log.e("VoiceRecognition", "Error launching speech recognition", e)
+        Toast.makeText(context, "Failed to start voice recognition: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+
+
+/**
+ * Handle camera permission request with rationale if needed
+ */
+@OptIn(ExperimentalPermissionsApi::class)
+private fun handleCameraPermission(
+    permissionState: com.google.accompanist.permissions.PermissionState,
+    onShowRationale: () -> Unit,
+    onPermissionGranted: () -> Unit
+) {
+    when {
+        permissionState.status.isGranted -> {
+            // Permission already granted, proceed with the operation
+            onPermissionGranted()
+        }
+        permissionState.status.shouldShowRationale -> {
+            // Show rational dialog to explain why we need this permission
+            onShowRationale()
+        }
+        else -> {
+            // Request permission for the first time
+            permissionState.launchPermissionRequest()
+        }
+    }
+}
+
+/**
+ * Handle microphone permission request with rationale if needed
+ */
+@OptIn(ExperimentalPermissionsApi::class)
+private fun handleMicrophonePermission(
+    permissionState: com.google.accompanist.permissions.PermissionState,
+    onShowRationale: () -> Unit,
+    onPermissionGranted: () -> Unit
+) {
+    when {
+        permissionState.status.isGranted -> {
+            // Permission already granted, proceed with the operation
+            onPermissionGranted()
+        }
+        permissionState.status.shouldShowRationale -> {
+            // Show rational dialog to explain why we need this permission
+            onShowRationale()
+        }
+        else -> {
+            // Request permission for the first time
+            permissionState.launchPermissionRequest()
+        }
     }
 }

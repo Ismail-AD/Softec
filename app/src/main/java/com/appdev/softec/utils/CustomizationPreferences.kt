@@ -6,7 +6,7 @@ import com.appdev.softec.presentation.feature.setting.FontSize
 import com.appdev.softec.presentation.feature.setting.LayoutType
 import com.appdev.softec.presentation.feature.setting.NotificationStyle
 
-class CustomizationPreferences(private val context: Context) {
+class CustomizationPreferences(context: Context) {
     // Separate SharedPreferences for each category
     private val themePrefs = context.getSharedPreferences("theme_preferences", Context.MODE_PRIVATE)
     private val fontPrefs = context.getSharedPreferences("font_preferences", Context.MODE_PRIVATE)

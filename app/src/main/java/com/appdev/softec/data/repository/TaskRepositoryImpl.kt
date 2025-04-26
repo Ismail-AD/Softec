@@ -1,6 +1,5 @@
 package com.appdev.softec.data.repository
 
-
 import com.appdev.softec.domain.model.TaskData
 import com.appdev.softec.domain.repository.TaskRepository
 import com.appdev.softec.utils.ResultState
@@ -15,40 +14,6 @@ class TaskRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) : TaskRepository {
-
-    override fun saveTask(taskData: TaskData): Flow<ResultState<String>> = callbackFlow {
-        trySend(ResultState.Loading)
-
-        val userId = auth.currentUser?.uid ?: run {
-            trySend(ResultState.Failure(Exception("User not authenticated")))
-            close()
-            return@callbackFlow
-        }
-
-        val taskMap = hashMapOf(
-            "id" to taskData.id,
-            "text" to taskData.text,
-            "category" to taskData.category,
-            "createdAt" to taskData.createdAt,
-            "dueDate" to taskData.dueDate,
-            "isCompleted" to taskData.isCompleted,
-            "userId" to userId
-        )
-
-        firestore.collection("tasks")
-            .document(taskData.id)
-            .set(taskMap)
-            .addOnSuccessListener {
-                trySend(ResultState.Success("Task saved successfully"))
-                close()
-            }
-            .addOnFailureListener { e ->
-                trySend(ResultState.Failure(e))
-                close()
-            }
-
-        awaitClose()
-    }
 
     override fun getTasksByUser(): Flow<ResultState<List<TaskData>>> = callbackFlow {
         trySend(ResultState.Loading)
@@ -92,6 +57,75 @@ class TaskRepositoryImpl @Inject constructor(
         awaitClose {
             listenerRegistration.remove()
         }
+    }
+
+    override fun saveTask(taskData: TaskData): Flow<ResultState<String>> = callbackFlow {
+        trySend(ResultState.Loading)
+
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(ResultState.Failure(Exception("User not authenticated")))
+            close()
+            return@callbackFlow
+        }
+
+        val taskMap = mapOf(
+            "id" to taskData.id,
+            "text" to taskData.text,
+            "category" to taskData.category,
+            "createdAt" to taskData.createdAt,
+            "dueDate" to taskData.dueDate,
+            "isCompleted" to taskData.isCompleted,
+            "userId" to userId
+        )
+
+        firestore.collection("tasks")
+            .document(taskData.id)
+            .set(taskMap)
+            .addOnSuccessListener {
+                trySend(ResultState.Success("Task saved successfully"))
+                close()
+            }
+            .addOnFailureListener { e ->
+                trySend(ResultState.Failure(e))
+                close()
+            }
+
+        awaitClose()
+    }
+
+    // New method: updateTask
+    override fun updateTask(taskData: TaskData): Flow<ResultState<String>> = callbackFlow {
+        trySend(ResultState.Loading)
+
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(ResultState.Failure(Exception("User not authenticated")))
+            close()
+            return@callbackFlow
+        }
+
+        val taskMap = mapOf(
+            "id" to taskData.id,
+            "text" to taskData.text,
+            "category" to taskData.category,
+            "createdAt" to taskData.createdAt,
+            "dueDate" to taskData.dueDate,
+            "isCompleted" to taskData.isCompleted,
+            "userId" to userId
+        )
+
+        firestore.collection("tasks")
+            .document(taskData.id)
+            .update(taskMap as Map<String, Any>)
+            .addOnSuccessListener {
+                trySend(ResultState.Success("Task updated successfully"))
+                close()
+            }
+            .addOnFailureListener { e ->
+                trySend(ResultState.Failure(e))
+                close()
+            }
+
+        awaitClose()
     }
 
     override fun updateTaskStatus(taskId: String, isCompleted: Boolean): Flow<ResultState<String>> = callbackFlow {

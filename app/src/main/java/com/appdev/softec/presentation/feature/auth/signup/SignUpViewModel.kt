@@ -71,15 +71,12 @@ class SignUpViewModel @Inject constructor(
         viewModelScope.launch {
             signUpRepository.signUp(
                 userEntity,
-                uiState.value.imageUri,
-                uiState.value.imageBytes
-            ) { message, success, imageUrl ->
+            ) { message, success,->
                 if (success) {
                     _uiState.update { it.copy(
                         isLoading = false,
                         success = true,
                         errorMessage = "",
-                        profileImageUrl = imageUrl ?: ""
                     )}
                 } else {
                     _uiState.update { it.copy(

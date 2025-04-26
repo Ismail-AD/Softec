@@ -8,8 +8,6 @@ import kotlinx.coroutines.flow.Flow
 interface SignUpRepository {
     suspend fun signUp(
         userEntity: UserEntity,
-        imageUri: Uri?,
-        imageBytes: ByteArray?,
-        result: (message: String, success: Boolean,imageUrl:String?) -> Unit
+        result: (message: String, success: Boolean) -> Unit
     )
 }
