@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,6 +13,13 @@ android {
     namespace = "com.appdev.softec"
     compileSdk = 35
 
+    val localProperties = Properties()
+    localProperties.load(File(rootDir, "local.properties").inputStream())
+
+    val supabaseKey: String = localProperties.getProperty("supabaseKey") ?: ""
+    val supabaseUrl: String = localProperties.getProperty("supabaseUrl") ?: ""
+    val geminiKey: String = localProperties.getProperty("geminikey") ?: ""
+
     defaultConfig {
         applicationId = "com.appdev.softec"
         minSdk = 24
@@ -22,6 +31,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
     }
 
     buildTypes {
@@ -42,6 +54,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -67,6 +80,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -89,4 +103,8 @@ dependencies {
     implementation(libs.material.icons.extended)
     implementation(libs.hilt.navigation.compose)
 
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.realtime)
+    implementation(libs.supabase.storage)
+    implementation(libs.ktor.client.android)
 }
