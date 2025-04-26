@@ -9,8 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.appdev.softec.presentation.feature.setting.CustomizationViewModel
 import com.appdev.softec.presentation.navigation.NavGraph
 import com.appdev.softec.presentation.theme.SoftecTheme
 import com.google.firebase.auth.FirebaseAuth
@@ -28,7 +32,9 @@ class MainActivity : ComponentActivity() {
         val userId= firebaseAuth.currentUser?.uid ?:""
         enableEdgeToEdge()
         setContent {
-            SoftecTheme {
+            val viewModel: CustomizationViewModel = hiltViewModel()
+            val customizationState by viewModel.customizationState.collectAsState()
+            SoftecTheme(isDarkMode = customizationState.isDarkMode) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     NavGraph(userId)
                 }
@@ -45,10 +51,3 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
     )
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SoftecTheme {
-        Greeting("Android")
-    }
-}
