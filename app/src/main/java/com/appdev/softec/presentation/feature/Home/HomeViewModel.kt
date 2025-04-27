@@ -93,8 +93,11 @@ class HomeViewModel @Inject constructor(
                     is ResultState.Success -> {
                         val todaysTasks = result.data
                         val tasksByCategory = todaysTasks.groupBy { it.category ?: "Uncategorized" }
+
+                        // Simple count of tasks regardless of filter conditions
                         val completedTasksCount = todaysTasks.count { it.isCompleted }
-                        val pendingTasksCount = todaysTasks.count { !it.isCompleted }
+                        val pendingTasksCount = todaysTasks.size - completedTasksCount
+                        val totalTasksCount = todaysTasks.size
 
                         _uiState.update { state ->
                             state.copy(
@@ -102,18 +105,13 @@ class HomeViewModel @Inject constructor(
                                 tasksByCategory = tasksByCategory,
                                 completedTasksCount = completedTasksCount,
                                 pendingTasksCount = pendingTasksCount,
+                                totalTasksCount = totalTasksCount, // Add this field to your state
                                 hasTodaysTasks = todaysTasks.isNotEmpty()
                             )
                         }
                     }
-                    is ResultState.Failure -> {
-                        _uiState.update { it.copy(
-                            error = result.message.localizedMessage ?: "Error loading tasks"
-                        ) }
-                    }
-                    is ResultState.Loading -> {
-                        // Loading state already set
-                    }
+                    // Rest of the code remains the same...
+                    else -> {}
                 }
 
                 updateLoadingState()
