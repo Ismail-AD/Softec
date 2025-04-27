@@ -52,6 +52,75 @@ class TaskViewModel @Inject constructor(
         apiKey = BuildConfig.GEMINI_KEY
     )
 
+    fun updateIsCompleted(isCompleted: Boolean) {
+        _uiState.value = _uiState.value.copy(isCompleted = isCompleted)
+    }
+
+    fun initializeWithTask(task: TaskData) {
+        _uiState.update {
+            it.copy(
+                taskText = task.text,
+                category = TaskCategory.valueOf(task.category),
+                dueDate = task.dueDate,
+            )
+        }
+    }
+
+
+    fun prepareAndUpdateTask(taskId: String) {
+        if (!validateTask()) return
+
+        _uiState.update { it.copy(isLoading = true, isProcessingInput = true) }
+
+        viewModelScope.launch {
+            try {
+                if (uiState.value.taskText.isNotBlank()) {
+                    // First, process natural language to extract structured data
+                    val nlpResult = processNaturalLanguageInput(uiState.value.taskText)
+
+                    Log.d("TaskViewModel", "Extracted Task Data (Update): $nlpResult")
+
+                    // Update UI state with the extracted data
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            taskText = nlpResult.taskText,
+                            category = nlpResult.category,
+                            dueDate = nlpResult.dueDate ?: currentState.dueDate
+                        )
+                    }
+
+                    // Create TaskData for updating
+                    val taskData = TaskData(
+                        id = taskId,
+                        text = nlpResult.taskText,
+                        category = nlpResult.category.name,
+                        dueDate = nlpResult.dueDate ?: uiState.value.dueDate,
+                        createdAt = System.currentTimeMillis() ,
+                        isCompleted = uiState.value.isCompleted
+                    )
+
+                    // Now call update in repository
+                    taskRepository.updateTask(taskData).collect { result ->
+                        when (result) {
+                            is ResultState.Loading -> {
+                                _uiState.update { it.copy(isLoading = true) }
+                            }
+                            is ResultState.Success -> {
+                                _uiState.update { it.copy(isLoading = false, isProcessingInput = false, success = true) }
+                            }
+                            is ResultState.Failure -> {
+                                _uiState.update { it.copy(isLoading = false, isProcessingInput = false, errorMessage = result.message.localizedMessage ?: "Unknown error") }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, isProcessingInput = false, errorMessage = e.localizedMessage ?: "Unknown error") }
+            }
+        }
+    }
+
+
     // Simply update the text without AI processing
     fun updateTaskText(text: String) {
         _uiState.update { it.copy(taskText = text) }

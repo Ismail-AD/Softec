@@ -68,6 +68,7 @@ fun CreateTaskScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val isUpdateMode = uiState.taskId != null
 
     val datePickerState = rememberDatePickerState()
     val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -77,7 +78,8 @@ fun CreateTaskScreen(
 
     // Permissions
     val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
-    val microphonePermissionState = rememberPermissionState(permission = Manifest.permission.RECORD_AUDIO)
+    val microphonePermissionState =
+        rememberPermissionState(permission = Manifest.permission.RECORD_AUDIO)
 
     // Permission dialog states
     var showCameraRationale by rememberSaveable { mutableStateOf(false) }
@@ -94,7 +96,8 @@ fun CreateTaskScreen(
         Log.d("SpeechRecognizer", "Got result with code: ${result.resultCode}")
 
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val spokenText: ArrayList<String>? = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText: ArrayList<String>? =
+                result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             Log.d("SpeechRecognizer", "Results: $spokenText")
 
             val recognizedText = spokenText?.firstOrNull() ?: ""
@@ -156,7 +159,13 @@ fun CreateTaskScreen(
                 },
                 actions = {
                     TextButton(
-                        onClick = { viewModel.saveTask() },
+                        onClick = {
+                            if (uiState.taskId != null) {
+                                viewModel.prepareAndUpdateTask(uiState.taskId)
+                            } else {
+                                viewModel.saveTask()
+                            }
+                        },
                         enabled = !uiState.isLoading && uiState.taskText.isNotBlank()
                     ) {
                         Text("Save")
@@ -191,7 +200,10 @@ fun CreateTaskScreen(
                                         permissionState = microphonePermissionState,
                                         onShowRationale = { showMicrophoneRationale = true },
                                         onPermissionGranted = {
-                                            Log.d("VoiceInput", "Microphone permission is granted, starting voice recognition")
+                                            Log.d(
+                                                "VoiceInput",
+                                                "Microphone permission is granted, starting voice recognition"
+                                            )
                                             startVoiceRecognition(context, speechRecognizerLauncher)
                                         }
                                     )
@@ -222,221 +234,191 @@ fun CreateTaskScreen(
                         }
                     }
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Category selection
-                Text(
-                    text = "Category",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Category chips
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(uiState.availableCategories.size) { index ->
-                        val category = uiState.availableCategories[index]
-                        val isSelected = category == uiState.category
-
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.updateCategory(category) },
-                            label = { Text(category.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Due date selection
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                if (isUpdateMode) {
                     Text(
-                        text = "Due Date",
+                        text = "Task Status",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
+                        fontWeight = FontWeight.Medium
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    if (uiState.dueDate != null) {
-                        Text(
-                            text = uiState.dueDate?.let { dateFormatter.format(Date(it)) } ?: "No due date",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                    val statusOptions = listOf("Pending" to false, "Completed" to true)
+                    val selectedStatus =
+                        remember(uiState.isCompleted) { mutableStateOf(uiState.isCompleted) }
 
-                        IconButton(onClick = { viewModel.updateDueDate(null) }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear Date"
+                    statusOptions.forEach { (label, value) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = selectedStatus.value == value,
+                                onClick = {
+                                    selectedStatus.value = value
+                                    viewModel.updateIsCompleted(value)
+                                }
                             )
-                        }
-                    } else {
-                        OutlinedButton(onClick = { showDatePicker = true }) {
-                            Text("Set Due Date")
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
                         }
                     }
                 }
-            }
 
-            // Loading indicator
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
 
-            // Camera view
-            AnimatedVisibility(
-                visible = uiState.isCameraActive,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                ) {
-                    CameraPreview(
-                        imageCapture = imageCapture,
-                        executor = executor,
-                        onImageCaptured = { uri ->
-                            viewModel.processCameraInput(uri)
-                        },
-                        onError = { error ->
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Camera error: $error")
-                            }
-                            viewModel.toggleCameraActive()
-                        }
-                    )
-
-                    // Camera controls
-                    Row(
+                // Loading indicator
+                if (uiState.isLoading) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        IconButton(
-                            onClick = { viewModel.toggleCameraActive() },
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
+                        CircularProgressIndicator()
+                    }
+                }
 
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val photoFile = File(
-                                    outputDirectory,
-                                    "task_scan_${System.currentTimeMillis()}.jpg"
-                                )
-
-                                val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-                                // This function can remain as is, but make sure the image quality is good enough for OCR
-                                imageCapture.takePicture(
-                                    outputOptions,
-                                    executor,
-                                    object : ImageCapture.OnImageSavedCallback {
-                                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                            val savedUri = Uri.fromFile(photoFile)
-                                            val contentUri = FileProvider.getUriForFile(
-                                                context,
-                                                "${context.packageName}.fileprovider",
-                                                photoFile
-                                            )
-                                            viewModel.processCameraInput(contentUri)
-                                        }
-
-                                        override fun onError(exception: ImageCaptureException) {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Failed to capture image")
-                                            }
-                                            viewModel.toggleCameraActive()
-                                        }
-                                    }
-                                )
+                // Camera view
+                AnimatedVisibility(
+                    visible = uiState.isCameraActive,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
+                        CameraPreview(
+                            imageCapture = imageCapture,
+                            executor = executor,
+                            onImageCaptured = { uri ->
+                                viewModel.processCameraInput(uri)
                             },
+                            onError = { error ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Camera error: $error")
+                                }
+                                viewModel.toggleCameraActive()
+                            }
+                        )
+
+                        // Camera controls
+                        Row(
                             modifier = Modifier
-                                .size(80.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.7f),
-                                    shape = RoundedCornerShape(40.dp)
-                                )
-                                .padding(16.dp)
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PhotoCamera,
-                                contentDescription = "Take Photo",
-                                tint = MaterialTheme.colorScheme.inverseOnSurface,
-                                modifier = Modifier.size(48.dp)
-                            )
+                            IconButton(
+                                onClick = { viewModel.toggleCameraActive() },
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    val photoFile = File(
+                                        outputDirectory,
+                                        "task_scan_${System.currentTimeMillis()}.jpg"
+                                    )
+
+                                    val outputOptions =
+                                        ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+                                    // This function can remain as is, but make sure the image quality is good enough for OCR
+                                    imageCapture.takePicture(
+                                        outputOptions,
+                                        executor,
+                                        object : ImageCapture.OnImageSavedCallback {
+                                            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                                val savedUri = Uri.fromFile(photoFile)
+                                                val contentUri = FileProvider.getUriForFile(
+                                                    context,
+                                                    "${context.packageName}.fileprovider",
+                                                    photoFile
+                                                )
+                                                viewModel.processCameraInput(contentUri)
+                                            }
+
+                                            override fun onError(exception: ImageCaptureException) {
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Failed to capture image")
+                                                }
+                                                viewModel.toggleCameraActive()
+                                            }
+                                        }
+                                    )
+                                },
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.7f),
+                                        shape = RoundedCornerShape(40.dp)
+                                    )
+                                    .padding(16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = "Take Photo",
+                                    tint = MaterialTheme.colorScheme.inverseOnSurface,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    // Date picker dialog
+        // Date picker dialog
 
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            viewModel.updateDueDate(millis)
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                viewModel.updateDueDate(millis)
+                            }
+                            showDatePicker = false
                         }
-                        showDatePicker = false
+                    ) {
+                        Text("OK")
                     }
-                ) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDatePicker = false
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showDatePicker = false
+                        }
+                    ) {
+                        Text("Cancel")
                     }
-                ) {
-                    Text("Cancel")
                 }
+            ) {
+                DatePicker(state = datePickerState)
             }
-        ) {
-            DatePicker(state = datePickerState)
         }
     }
 }
-
 @Composable
 fun CameraPreview(
     imageCapture: ImageCapture,
@@ -482,18 +464,25 @@ fun CameraPreview(
     )
 }
 
-private fun startVoiceRecognition(
+fun startVoiceRecognition(
     context: Context,
     launcher: ManagedActivityResultLauncher<Intent, ActivityResult>
 ) {
     // First check if speech recognition is available
     if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-        Toast.makeText(context, "Speech recognition not available on this device", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            "Speech recognition not available on this device",
+            Toast.LENGTH_SHORT
+        ).show()
         return
     }
 
     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        )
         putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your task")
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
     }
@@ -502,10 +491,13 @@ private fun startVoiceRecognition(
         launcher.launch(intent)
     } catch (e: Exception) {
         Log.e("VoiceRecognition", "Error launching speech recognition", e)
-        Toast.makeText(context, "Failed to start voice recognition: ${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            "Failed to start voice recognition: ${e.message}",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 }
-
 
 
 /**
@@ -522,10 +514,12 @@ fun handleCameraPermission(
             // Permission already granted, proceed with the operation
             onPermissionGranted()
         }
+
         permissionState.status.shouldShowRationale -> {
             // Show rational dialog to explain why we need this permission
             onShowRationale()
         }
+
         else -> {
             // Request permission for the first time
             permissionState.launchPermissionRequest()
@@ -547,10 +541,12 @@ fun handleMicrophonePermission(
             // Permission already granted, proceed with the operation
             onPermissionGranted()
         }
+
         permissionState.status.shouldShowRationale -> {
             // Show rational dialog to explain why we need this permission
             onShowRationale()
         }
+
         else -> {
             // Request permission for the first time
             permissionState.launchPermissionRequest()

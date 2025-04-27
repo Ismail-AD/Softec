@@ -75,7 +75,7 @@ class MoodJournalViewModel @Inject constructor(
     }
 
     fun saveMoodEntry() {
-        if (uiState.value.moodNote.isBlank()) {
+        if (uiState.value.moodNote.trim().isEmpty()) {
             _uiState.update { it.copy(errorMessage = "Please add a note about how you're feeling") }
             return
         }

@@ -4,10 +4,12 @@ import com.appdev.softec.data.repository.LoginRepositoryImpl
 import com.appdev.softec.data.repository.MoodRepositoryImpl
 import com.appdev.softec.data.repository.SignUpRepositoryImpl
 import com.appdev.softec.data.repository.TaskRepositoryImpl
+import com.appdev.softec.data.repository.UserRepositoryImpl
 import com.appdev.softec.domain.repository.LoginRepository
 import com.appdev.softec.domain.repository.MoodRepository
 import com.appdev.softec.domain.repository.SignUpRepository
 import com.appdev.softec.domain.repository.TaskRepository
+import com.appdev.softec.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
@@ -30,6 +32,12 @@ object RepositoryModule {
     @Singleton
     fun provideTaskRepository(firebaseAuth: FirebaseAuth,firestore: FirebaseFirestore): TaskRepository {
         return TaskRepositoryImpl(firestore,firebaseAuth)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserRepository(firebaseAuth: FirebaseAuth,firestore: FirebaseFirestore): UserRepository {
+        return UserRepositoryImpl(firestore,firebaseAuth)
     }
 
     @Provides

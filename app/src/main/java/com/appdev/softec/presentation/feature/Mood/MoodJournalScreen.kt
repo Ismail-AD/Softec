@@ -4,6 +4,7 @@ package com.appdev.softec.presentation.feature.Mood
 import android.graphics.Color as AndroidColor
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -99,12 +100,14 @@ fun MoodJournalScreen(
             locale = Locale.getDefault()
         )
     }
-    val showAnalysisSheet = remember { mutableStateOf(uiState.isAnalysisVisible) }
+    var showAnalysisSheet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.isAnalysisVisible) {
-        showAnalysisSheet.value = uiState.isAnalysisVisible
+    LaunchedEffect(Unit) {
+        showAnalysisSheet = uiState.isAnalysisVisible
     }
 
+
+    val context = LocalContext.current
     val selectedAnalysisPeriod = remember { mutableStateOf(uiState.selectedPeriod) }
 
     LaunchedEffect(uiState.selectedPeriod) {
@@ -113,14 +116,14 @@ fun MoodJournalScreen(
 
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage.isNotEmpty()) {
-            snackbarHostState.showSnackbar(uiState.errorMessage)
+            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_SHORT).show()
             viewModel.clearErrorMessage()
         }
     }
 
     LaunchedEffect(uiState.successMessage) {
         if (uiState.successMessage.isNotEmpty()) {
-            snackbarHostState.showSnackbar(uiState.successMessage)
+            Toast.makeText(context, uiState.successMessage, Toast.LENGTH_SHORT).show()
             viewModel.resetSuccessState() // Reset the success state after showing the message
         }
     }
@@ -136,7 +139,7 @@ fun MoodJournalScreen(
         )
     }
 
-    if (showAnalysisSheet.value) {
+    if (showAnalysisSheet) {
         MoodAnalysisSheet(
             moodEntries = uiState.moodEntries,
             selectedPeriod = selectedAnalysisPeriod.value,
@@ -145,8 +148,8 @@ fun MoodJournalScreen(
                 viewModel.updateSelectedPeriod(it)
             },
             onDismiss = {
+                showAnalysisSheet = false
                 viewModel.toggleAnalysisVisibility()
-                showAnalysisSheet.value = false
             }
         )
     }
@@ -157,7 +160,8 @@ fun MoodJournalScreen(
                 title = { Text("Mood Journal") },
                 actions = {
                     IconButton(onClick = {
-                        showAnalysisSheet.value = true
+                        showAnalysisSheet = true
+                        viewModel.toggleAnalysisVisibility()
                     }) {
                         Icon(
                             imageVector = Icons.Default.BarChart,
@@ -169,6 +173,10 @@ fun MoodJournalScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
+        if (uiState.isSaving) {
+            CustomLoader()
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -252,7 +260,6 @@ fun MoodJournalScreen(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     ),
-                    enabled = uiState.moodNote.trim().isNotEmpty()
                 )
             }
 
@@ -280,9 +287,11 @@ fun MoodJournalScreen(
             // Recent Entries Section
             if (uiState.isLoading) {
                 item {
-                    Column(modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 5.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 5.dp)
+                    ) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -298,27 +307,12 @@ fun MoodJournalScreen(
                     )
                 }
 
-                items(uiState.moodEntries.sortedByDescending { it.timestamp }.take(5)) { entry ->
+                items(uiState.moodEntries.sortedByDescending { it.timestamp }) { entry ->
                     MoodEntryItem(entry = entry, timeFormatter = timeFormatter)
-                    Divider(modifier = Modifier.fillMaxWidth())
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TextButton(
-                        onClick = { navigateToAnalysis() },
-                    ) {
-                        Text("View All Entries")
-                        Icon(
-                            imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "View All",
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-                }
-                item {
-                    Spacer(modifier = Modifier.height(30.dp))
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
@@ -376,14 +370,12 @@ fun MoodEntryItem(entry: MoodEntry, timeFormatter: SimpleDateFormat) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -437,6 +429,21 @@ fun MoodAnalysisSheet(
 ) {
     val sheetState = rememberModalBottomSheetState()
 
+    // Filter entries based on selected period
+    val filteredEntries = remember(moodEntries, selectedPeriod) {
+        filterEntriesByPeriod(moodEntries, selectedPeriod)
+    }
+
+    // Generate pie chart data from filtered entries
+    val chartData = remember(filteredEntries) {
+        generatePieChartData(filteredEntries)
+    }
+
+    // Create mood count statistics
+    val moodStats = remember(filteredEntries) {
+        calculateMoodStats(filteredEntries)
+    }
+
     ModalBottomSheet(
         onDismissRequest = { onDismiss() },
         sheetState = sheetState,
@@ -476,7 +483,16 @@ fun MoodAnalysisSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Summary text
+            Text(
+                text = "Summary for ${selectedPeriod.name.lowercase()}: ${filteredEntries.size} entries",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Pie Chart
             Card(
@@ -491,18 +507,17 @@ fun MoodAnalysisSheet(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Use our new PieChart implementation with compose-charts
-                    var chartData by remember {
-                        mutableStateOf(generatePieChartData(moodEntries))
-                    }
-
                     if (chartData.isNotEmpty()) {
+                        var selectedChartData by remember {
+                            mutableStateOf(chartData)
+                        }
+
                         PieChart(
-                            modifier = Modifier.size(250.dp),
-                            data = chartData,
+                            modifier = Modifier.size(150.dp),
+                            data = selectedChartData,
                             onPieClick = { clickedPie ->
-                                val pieIndex = chartData.indexOf(clickedPie)
-                                chartData = chartData.mapIndexed { mapIndex, pie ->
+                                val pieIndex = selectedChartData.indexOf(clickedPie)
+                                selectedChartData = selectedChartData.mapIndexed { mapIndex, pie ->
                                     pie.copy(selected = pieIndex == mapIndex)
                                 }
                             },
@@ -528,30 +543,95 @@ fun MoodAnalysisSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Mood Statistics Legend
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Mood Breakdown",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (moodStats.isEmpty()) {
+                        Text(
+                            text = "No mood data available for this period",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        moodStats.forEach { (mood, count, percentage) ->
+                            MoodStatItem(mood = mood, count = count, percentage = percentage)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { onDismiss() },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Close")
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
-// Helper function to generate PieChart data
-private fun generatePieChartData(moodEntries: List<MoodEntry>): List<Pie> {
-    val moodCounts = moodEntries
-        .groupBy { it.mood }
-        .mapValues { it.value.size }
 
-    val totalEntries = moodEntries.size.toFloat().takeIf { it > 0 } ?: 1f
-
-    return MoodType.entries.mapNotNull { mood ->
-        val count = moodCounts[mood] ?: 0
-        if (count > 0) {
-            Pie(
-                data = count.toDouble(),
-                color = mood.getColor(),
-                selected = false,
-                label = "${
-                    mood.name.lowercase().replaceFirstChar { it.uppercase() }
-                }\n${(count / totalEntries * 100).toInt()}%"
+@Composable
+fun MoodStatItem(mood: MoodType, count: Int, percentage: Float) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Mood emoji and color indicator
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(mood.getColor()),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = mood.getEmoji(),
+                style = MaterialTheme.typography.bodyLarge
             )
-        } else null
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Mood name
+        Text(
+            text = mood.name.replace("_", " ").lowercase()
+                .replaceFirstChar { it.uppercase() },
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Count and percentage
+        Text(
+            text = "$count (${"%.1f".format(percentage)}%)",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -690,5 +770,71 @@ fun MoodPieChart(
                 Text("Close")
             }
         }
+    }
+}
+
+// Filter entries by the selected time period
+private fun filterEntriesByPeriod(
+    entries: List<MoodEntry>,
+    period: AnalysisPeriod
+): List<MoodEntry> {
+    val currentTime = System.currentTimeMillis()
+    val calendar = Calendar.getInstance()
+    calendar.timeInMillis = currentTime
+
+    return when (period) {
+        AnalysisPeriod.WEEK -> {
+            calendar.add(Calendar.DAY_OF_YEAR, -7)
+            val weekAgo = calendar.timeInMillis
+            entries.filter { it.timestamp >= weekAgo }
+        }
+
+        AnalysisPeriod.MONTH -> {
+            calendar.add(Calendar.MONTH, -1)
+            val monthAgo = calendar.timeInMillis
+            entries.filter { it.timestamp >= monthAgo }
+        }
+
+        AnalysisPeriod.YEAR -> {
+            calendar.add(Calendar.YEAR, -1)
+            val yearAgo = calendar.timeInMillis
+            entries.filter { it.timestamp >= yearAgo }
+        }
+    }
+}
+
+// Generate PieChart data from entries
+private fun generatePieChartData(moodEntries: List<MoodEntry>): List<Pie> {
+    val moodCounts = moodEntries
+        .groupBy { it.mood }
+        .mapValues { it.value.size }
+
+    val totalEntries = moodEntries.size.toFloat().takeIf { it > 0 } ?: 1f
+
+    return MoodType.entries.mapNotNull { mood ->
+        val count = moodCounts[mood] ?: 0
+        if (count > 0) {
+            Pie(
+                data = count.toDouble(),
+                color = mood.getColor(),
+                selected = false,
+                label = "${mood.name.lowercase().replaceFirstChar { it.uppercase() }}"
+            )
+        } else null
+    }
+}
+
+// Calculate mood statistics for display
+private fun calculateMoodStats(moodEntries: List<MoodEntry>): List<Triple<MoodType, Int, Float>> {
+    val moodCounts = moodEntries
+        .groupBy { it.mood }
+        .mapValues { it.value.size }
+        .toList()
+        .sortedByDescending { it.second }
+
+    val totalEntries = moodEntries.size.toFloat().takeIf { it > 0 } ?: 1f
+
+    return moodCounts.map { (mood, count) ->
+        Triple(mood, count, (count / totalEntries) * 100f)
     }
 }

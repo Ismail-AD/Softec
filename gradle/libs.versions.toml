@@ -21,6 +21,7 @@ materialIconsExtended = "1.7.8"
 firebaseFirestore = "25.1.4"
 mpAndroidChart = "v3.1.0"
 ehsannarmanicompose="0.1.2"
+kotlinxSerializationJson = "1.5.0"
 
 generativeai = "0.9.0"
 accompanistPermissions = "0.34.0"
@@ -32,6 +33,7 @@ ktor-version = "2.3.7"  # Use a version compatible with your Supabase BOM
 [libraries]
 
 composecharts = { module = "io.github.ehsannarmani:compose-charts", version.ref = "ehsannarmanicompose" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }

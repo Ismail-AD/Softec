@@ -10,4 +10,5 @@ interface TaskRepository {
     fun updateTaskStatus(taskId: String, isCompleted: Boolean): Flow<ResultState<String>>
     fun deleteTask(taskId: String): Flow<ResultState<String>>
     fun updateTask(taskData: TaskData): Flow<ResultState<String>>
+    fun getTasksByDateRange(startDate: Long, endDate: Long): Flow<ResultState<List<TaskData>>>
 }

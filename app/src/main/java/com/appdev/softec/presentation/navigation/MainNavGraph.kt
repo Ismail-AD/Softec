@@ -1,5 +1,6 @@
 package com.appdev.softec.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -21,18 +22,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.appdev.softec.domain.model.TaskData
+import com.appdev.softec.presentation.feature.Home.HomeScreen
 import com.appdev.softec.presentation.feature.Mood.MoodJournalScreen
 import com.appdev.softec.presentation.feature.Summarizer.SummarizerScreen
 import com.appdev.softec.presentation.feature.setting.CustomizationScreen
 import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.CreateTaskScreen
 import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.TaskCategory
+import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.TaskViewModel
 import com.appdev.softec.presentation.feature.taskManagement.TasksList.TaskListScreen
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 @Composable
 fun MainScreen(onLogout: () -> Unit = {}) {
@@ -41,7 +50,7 @@ fun MainScreen(onLogout: () -> Unit = {}) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     val hideBottomBarRoutes = listOf(
-        Routes.TaskCreation.route
+        Routes.TaskCreation.route + "/{taskJson}"
     )
 
     // Define navigation items with icons
@@ -92,15 +101,32 @@ fun MainScreen(onLogout: () -> Unit = {}) {
             startDestination = Routes.HomePage.route,
         ) {
 
+
             composable(Routes.TaskList.route) {
-                TaskListScreen(onTaskClick = {
+                TaskListScreen(onTaskClick = { task ->
+                    val taskJson = Uri.encode(Json.encodeToString(task))
+                    navController.navigate(Routes.TaskCreation.route + "/$taskJson")
 
                 }, onAddTaskClick = {
-                    navController.navigate(Routes.TaskCreation.route)
+                    navController.navigate(Routes.TaskCreation.route + "/{}")
                 })
             }
 
-            composable(Routes.TaskCreation.route) {
+            composable(Routes.TaskCreation.route + "/{taskJson}", arguments = listOf(
+                navArgument("taskJson") {
+                    type = NavType.StringType
+                }
+            )) { backStackEntry ->
+                val taskViewModel: TaskViewModel = hiltViewModel()
+                val taskJson = backStackEntry.arguments?.getString("taskJson") ?: ""
+                val decodedProduct = try {
+                    Json.decodeFromString<TaskData>(Uri.decode(taskJson))
+                } catch (e: Exception) {
+                    null
+                }
+                if (decodedProduct != null) {
+                    taskViewModel.initializeWithTask(decodedProduct)
+                }
                 CreateTaskScreen(onNavigateBack = {
                     navController.navigateUp()
                 }, {
@@ -108,7 +134,15 @@ fun MainScreen(onLogout: () -> Unit = {}) {
                 })
             }
             composable(Routes.HomePage.route) {
-                HomePage()
+                HomeScreen(onNavigateToAddTask = {
+
+                }, onNavigateToCalendar = {
+
+                }, onNavigateToSettings = {
+                    navController.navigate(Routes.Settings.route)
+                }, onNavigateToMoodJournal = {
+
+                })
             }
             composable(Routes.Summarize.route) {
                 SummarizerScreen()
@@ -126,10 +160,6 @@ fun MainScreen(onLogout: () -> Unit = {}) {
 
 }
 
-@Composable
-fun HomePage() {
-
-}
 
 @Composable
 fun BottomNavigation(

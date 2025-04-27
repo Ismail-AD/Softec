@@ -13,6 +13,7 @@ data class TaskUiState(
     val isProcessingInput: Boolean = false,
     val isLoading: Boolean = false,
     val success: Boolean = false,
+    val isCompleted: Boolean = false,
     val errorMessage: String = "",
     val availableCategories: List<TaskCategory> = TaskCategory.entries
 )

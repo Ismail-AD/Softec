@@ -1,5 +1,6 @@
 package com.appdev.softec.data.repository
 
+import android.util.Log
 import com.appdev.softec.domain.model.TaskData
 import com.appdev.softec.domain.repository.TaskRepository
 import com.appdev.softec.utils.ResultState
@@ -14,6 +15,66 @@ class TaskRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) : TaskRepository {
+
+
+    override fun getTasksByDateRange(startDate: Long, endDate: Long): Flow<ResultState<List<TaskData>>> = callbackFlow {
+        trySend(ResultState.Loading)
+
+        val userId = auth.currentUser?.uid ?: run {
+            trySend(ResultState.Failure(Exception("User not authenticated")))
+            close()
+            return@callbackFlow
+        }
+
+        // Get all tasks for the user and filter in memory
+        val listenerRegistration = firestore.collection("tasks")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    trySend(ResultState.Failure(e))
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val allTasks = snapshot.documents.mapNotNull { doc ->
+                        // Your mapping code here...
+                        try {
+                            val id = doc.getString("id") ?: return@mapNotNull null
+                            val text = doc.getString("text") ?: return@mapNotNull null
+                            val category = doc.getString("category") ?: return@mapNotNull null
+                            val createdAt = doc.getLong("createdAt") ?: return@mapNotNull null
+                            val dueDate = doc.getLong("dueDate")
+                            val isCompleted = doc.getBoolean("isCompleted") ?: false
+
+                            TaskData(
+                                id = id,
+                                text = text,
+                                category = category,
+                                createdAt = createdAt,
+                                dueDate = dueDate,
+                                isCompleted = isCompleted
+                            )
+                        } catch (e: Exception) {
+                            Log.d("CHAZQ","${e.localizedMessage}")
+                            null
+                        }
+                    }
+                    Log.d("CHAZQ","${allTasks}")
+
+
+                    // Filter tasks in memory
+                    val tasksInRange = allTasks.filter { task ->
+                        task.dueDate != null && task.dueDate >= startDate && task.dueDate <= endDate
+                    }
+
+                    trySend(ResultState.Success(tasksInRange))
+                }
+            }
+
+        awaitClose {
+            listenerRegistration.remove()
+        }
+    }
 
     override fun getTasksByUser(): Flow<ResultState<List<TaskData>>> = callbackFlow {
         trySend(ResultState.Loading)

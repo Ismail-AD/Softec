@@ -1,9 +1,12 @@
 package com.appdev.softec.domain.model
 
+import android.os.Parcelable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.parcelize.Parcelize
 
 
+@Parcelize
 @Entity(tableName = "tasks")
 data class TaskData(
     @PrimaryKey val id: String,
@@ -13,4 +16,4 @@ data class TaskData(
     val dueDate: Long?,
     val isCompleted: Boolean,
     val isSynced: Boolean = false // Added field to track sync status
-)
+) : Parcelable
