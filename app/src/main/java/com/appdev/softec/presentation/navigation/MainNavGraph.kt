@@ -1,6 +1,7 @@
 package com.appdev.softec.presentation.navigation
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -50,7 +51,8 @@ fun MainScreen(onLogout: () -> Unit = {}) {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
     val hideBottomBarRoutes = listOf(
-        Routes.TaskCreation.route + "/{taskJson}"
+        Routes.TaskCreation.route + "/{taskJson}",
+        Routes.Settings.route
     )
 
     // Define navigation items with icons
@@ -124,6 +126,7 @@ fun MainScreen(onLogout: () -> Unit = {}) {
                 } catch (e: Exception) {
                     null
                 }
+                Log.d("CAZX","${decodedProduct}")
                 if (decodedProduct != null) {
                     taskViewModel.initializeWithTask(decodedProduct)
                 }

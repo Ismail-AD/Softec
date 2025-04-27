@@ -148,7 +148,7 @@ fun CreateTaskScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Create New Task") },
+                title = { Text(if(uiState.taskId.trim().isNotEmpty()) "Update Task" else "Create New Task") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -268,6 +268,37 @@ fun CreateTaskScreen(
                         }
                     }
                 }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Due Date",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (uiState.dueDate != null) {
+                        Text(
+                            text = uiState.dueDate?.let { dateFormatter.format(Date(it)) } ?: "No due date",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        IconButton(onClick = { viewModel.updateDueDate(null) }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear Date"
+                            )
+                        }
+                    } else {
+                        OutlinedButton(onClick = { showDatePicker = true }) {
+                            Text("Set Due Date")
+                        }
+                    }
+                }
+
 
 
                 // Loading indicator

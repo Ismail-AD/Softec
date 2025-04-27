@@ -38,7 +38,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskListScreen(
-    onTaskClick: (String) -> Unit,
+    onTaskClick: (TaskData) -> Unit,
     onAddTaskClick: () -> Unit,
     viewModel: GetTaskViewModel = hiltViewModel()
 ) {
@@ -119,7 +119,7 @@ fun TaskListScreen(
                     onUpdate = {
                         // Navigate to task creation/update screen
                         // Pass the task ID to the edit screen
-                        onTaskClick(selectedTask!!.id)
+                        onTaskClick(selectedTask!!)
                     }
                 )
             }

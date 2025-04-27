@@ -62,6 +62,7 @@ class TaskViewModel @Inject constructor(
                 taskText = task.text,
                 category = TaskCategory.valueOf(task.category),
                 dueDate = task.dueDate,
+                isCompleted = task.isCompleted
             )
         }
     }

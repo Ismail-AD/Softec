@@ -176,12 +176,13 @@ class TaskRepositoryImpl @Inject constructor(
 
         firestore.collection("tasks")
             .document(taskData.id)
-            .update(taskMap as Map<String, Any>)
+            .set(taskMap)  // Using set() instead of update()
             .addOnSuccessListener {
                 trySend(ResultState.Success("Task updated successfully"))
                 close()
             }
             .addOnFailureListener { e ->
+                Log.d("AJZ","${e.localizedMessage}")
                 trySend(ResultState.Failure(e))
                 close()
             }

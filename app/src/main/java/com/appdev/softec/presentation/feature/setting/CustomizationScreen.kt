@@ -22,182 +22,187 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomizationScreen(viewModel: CustomizationViewModel = hiltViewModel()) {
     val customizationState by viewModel.customizationState.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "Customization Options",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-
-        // Dark Mode Toggle
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Dark Mode",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
+    // Scaffold to structure the layout
+    Scaffold(
+        topBar = {
+            // Optional top bar (could add a title or navigation)
+            TopAppBar(
+                title = { Text("Customization Options") },
             )
+        },
+        content = { paddingValues -> // Add padding from Scaffold
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+                    .padding(paddingValues), // Apply Scaffold's padding values
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
 
-            Switch(
-                checked = customizationState.isDarkMode,
-                onCheckedChange = { viewModel.setDarkMode(it) },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
-        }
-
-        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-
-        // Font Size Selection
-        Text(
-            text = "Font Size",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Column(modifier = Modifier.fillMaxWidth()) {
-            FontSize.entries.forEach { fontSize ->
+                // Dark Mode Toggle
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RadioButton(
-                        selected = customizationState.fontSize == fontSize,
-                        onClick = { viewModel.setFontSize(fontSize) },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = MaterialTheme.colorScheme.primary,
-                            unselectedColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
                     Text(
-                        text = fontSize.name.lowercase().capitalize(),
-                        fontSize = fontSize.size.sp,
+                        text = "Dark Mode",
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                }
-            }
-        }
 
-        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-
-        // Layout Type Selection
-        Text(
-            text = "Layout Type",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(LayoutType.entries.toTypedArray()) { layoutType ->
-                val isSelected = customizationState.layoutType == layoutType
-
-                Surface(
-                    modifier = Modifier
-                        .width(100.dp)
-                        .height(70.dp)
-                        .clickable { viewModel.setLayoutType(layoutType) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                    else MaterialTheme.colorScheme.surface,
-                    border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                    else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        // Layout icon would go here in real app
-                        Text(
-                            text = layoutType.name.lowercase().capitalize(),
-                            textAlign = TextAlign.Center,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        }
-
-        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-
-        // Notification Style Selection
-        Text(
-            text = "Notification Style",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Column(modifier = Modifier.fillMaxWidth()) {
-            NotificationStyle.entries.forEach { style ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable { viewModel.setNotificationStyle(style) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = customizationState.notificationStyle == style,
-                        onClick = { viewModel.setNotificationStyle(style) },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = MaterialTheme.colorScheme.primary,
-                            unselectedColor = MaterialTheme.colorScheme.outline
+                    Switch(
+                        checked = customizationState.isDarkMode,
+                        onCheckedChange = { viewModel.setDarkMode(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
+                }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
 
-                    Column {
-                        Text(
-                            text = style.name.lowercase().replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = getNotificationDescription(style),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                // Font Size Selection
+                Text(
+                    text = "Font Size",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    FontSize.entries.forEach { fontSize ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = customizationState.fontSize == fontSize,
+                                onClick = { viewModel.setFontSize(fontSize) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary,
+                                    unselectedColor = MaterialTheme.colorScheme.outline
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Text(
+                                text = fontSize.name.lowercase().capitalize(),
+                                fontSize = fontSize.size.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                }
+
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                // Layout Type Selection
+                Text(
+                    text = "Layout Type",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(LayoutType.entries.toTypedArray()) { layoutType ->
+                        val isSelected = customizationState.layoutType == layoutType
+
+                        Surface(
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(70.dp)
+                                .clickable { viewModel.setLayoutType(layoutType) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            else MaterialTheme.colorScheme.surface,
+                            border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // Layout icon would go here in real app
+                                Text(
+                                    text = layoutType.name.lowercase().capitalize(),
+                                    textAlign = TextAlign.Center,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+
+                // Notification Style Selection
+                Text(
+                    text = "Notification Style",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    NotificationStyle.entries.forEach { style ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clickable { viewModel.setNotificationStyle(style) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = customizationState.notificationStyle == style,
+                                onClick = { viewModel.setNotificationStyle(style) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary,
+                                    unselectedColor = MaterialTheme.colorScheme.outline
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Column {
+                                Text(
+                                    text = style.name.lowercase().replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = getNotificationDescription(style),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
-    }
+    )
 }
 
 @Composable

@@ -4,8 +4,10 @@ import android.os.Parcelable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 
 
+@Serializable // Add this annotation
 @Parcelize
 @Entity(tableName = "tasks")
 data class TaskData(
