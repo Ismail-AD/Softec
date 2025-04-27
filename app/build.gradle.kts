@@ -110,6 +110,7 @@ dependencies {
     implementation(libs.camera.video)
     implementation(libs.camera.view)
     implementation(libs.guava)
+    implementation(libs.composecharts)
     implementation(libs.glide)
     implementation(libs.mlkit.text.recognition)
 

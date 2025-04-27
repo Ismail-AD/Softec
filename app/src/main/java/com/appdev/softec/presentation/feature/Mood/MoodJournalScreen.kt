@@ -1,6 +1,20 @@
 package com.appdev.softec.presentation.feature.Mood
 
 
+import android.graphics.Color as AndroidColor
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,17 +26,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.util.lerp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,14 +41,41 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.appdev.softec.domain.model.MoodEntry
 import com.appdev.softec.presentation.components.CustomLoader
+import ir.ehsannarmani.compose_charts.PieChart
+import ir.ehsannarmani.compose_charts.models.Pie
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.appdev.softec.domain.model.MoodEntry
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +98,17 @@ fun MoodJournalScreen(
             initialSelectedDateMillis = calendar.timeInMillis,
             locale = Locale.getDefault()
         )
+    }
+    val showAnalysisSheet = remember { mutableStateOf(uiState.isAnalysisVisible) }
+
+    LaunchedEffect(uiState.isAnalysisVisible) {
+        showAnalysisSheet.value = uiState.isAnalysisVisible
+    }
+
+    val selectedAnalysisPeriod = remember { mutableStateOf(uiState.selectedPeriod) }
+
+    LaunchedEffect(uiState.selectedPeriod) {
+        selectedAnalysisPeriod.value = uiState.selectedPeriod
     }
 
     LaunchedEffect(uiState.errorMessage) {
@@ -93,12 +136,29 @@ fun MoodJournalScreen(
         )
     }
 
+    if (showAnalysisSheet.value) {
+        MoodAnalysisSheet(
+            moodEntries = uiState.moodEntries,
+            selectedPeriod = selectedAnalysisPeriod.value,
+            onPeriodSelected = {
+                selectedAnalysisPeriod.value = it
+                viewModel.updateSelectedPeriod(it)
+            },
+            onDismiss = {
+                viewModel.toggleAnalysisVisibility()
+                showAnalysisSheet.value = false
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Mood Journal") },
                 actions = {
-                    IconButton(onClick = { viewModel.toggleAnalysisVisibility() }) {
+                    IconButton(onClick = {
+                        showAnalysisSheet.value = true
+                    }) {
                         Icon(
                             imageVector = Icons.Default.BarChart,
                             contentDescription = "View Mood Analysis"
@@ -191,7 +251,8 @@ fun MoodJournalScreen(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                    ),
+                    enabled = uiState.moodNote.trim().isNotEmpty()
                 )
             }
 
@@ -219,7 +280,9 @@ fun MoodJournalScreen(
             // Recent Entries Section
             if (uiState.isLoading) {
                 item {
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 5.dp)) {
+                    Column(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 5.dp)) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -253,6 +316,9 @@ fun MoodJournalScreen(
                             modifier = Modifier.padding(start = 4.dp)
                         )
                     }
+                }
+                item {
+                    Spacer(modifier = Modifier.height(30.dp))
                 }
             }
         }
@@ -380,6 +446,7 @@ fun MoodAnalysisSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "Mood Analysis",
@@ -394,7 +461,7 @@ fun MoodAnalysisSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
-                AnalysisPeriod.values().forEach { period ->
+                AnalysisPeriod.entries.forEach { period ->
                     FilterChip(
                         selected = selectedPeriod == period,
                         onClick = { onPeriodSelected(period) },
@@ -411,121 +478,80 @@ fun MoodAnalysisSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Mood Distribution
-            Text(
-                text = "Mood Distribution",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Mood Chart - Simple Bar Chart representation
-            // In a real app, you'd use a chart library
-            val moodCounts = moodEntries
-                .groupBy { it.mood }
-                .mapValues { it.value.size }
-                .toSortedMap()
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
+            // Pie Chart
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
             ) {
-                val maxCount = if (moodCounts.values.isNotEmpty()) moodCounts.values.max() else 1
-
-                MoodType.values().forEach { mood ->
-                    val count = moodCounts[mood] ?: 0
-                    val heightRatio = if (maxCount > 0) count.toFloat() / maxCount else 0f
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Text(
-                            text = count.toString(),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .width(40.dp)
-                                .height(160.dp * heightRatio)
-                                .background(
-                                    mood
-                                        .getColor()
-                                        .copy(alpha = 0.7f),
-                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
-                                )
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = mood.getEmoji(),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Mood Trends
-            Text(
-                text = "Mood Trend",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Simplified trend visualization
-            // Would use a line chart library in a real app
-            if (moodEntries.isNotEmpty()) {
-                val sortedEntries = moodEntries.sortedBy { it.timestamp }
-                val dateFormatter = SimpleDateFormat("MM/dd", Locale.getDefault())
-
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    sortedEntries.forEach { entry ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = entry.mood.getEmoji(),
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                    // Use our new PieChart implementation with compose-charts
+                    var chartData by remember {
+                        mutableStateOf(generatePieChartData(moodEntries))
+                    }
 
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = dateFormatter.format(Date(entry.timestamp)),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+                    if (chartData.isNotEmpty()) {
+                        PieChart(
+                            modifier = Modifier.size(250.dp),
+                            data = chartData,
+                            onPieClick = { clickedPie ->
+                                val pieIndex = chartData.indexOf(clickedPie)
+                                chartData = chartData.mapIndexed { mapIndex, pie ->
+                                    pie.copy(selected = pieIndex == mapIndex)
+                                }
+                            },
+                            selectedScale = 1.1f,
+                            scaleAnimEnterSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            colorAnimEnterSpec = tween(300),
+                            colorAnimExitSpec = tween(300),
+                            scaleAnimExitSpec = tween(300),
+                            spaceDegreeAnimExitSpec = tween(300),
+                            style = Pie.Style.Fill
+                        )
+                    } else {
+                        Text(
+                            text = "No mood data available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 48.dp)
+                        )
                     }
                 }
-            } else {
-                Text(
-                    text = "Not enough data to show trends",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
+
+// Helper function to generate PieChart data
+private fun generatePieChartData(moodEntries: List<MoodEntry>): List<Pie> {
+    val moodCounts = moodEntries
+        .groupBy { it.mood }
+        .mapValues { it.value.size }
+
+    val totalEntries = moodEntries.size.toFloat().takeIf { it > 0 } ?: 1f
+
+    return MoodType.entries.mapNotNull { mood ->
+        val count = moodCounts[mood] ?: 0
+        if (count > 0) {
+            Pie(
+                data = count.toDouble(),
+                color = mood.getColor(),
+                selected = false,
+                label = "${
+                    mood.name.lowercase().replaceFirstChar { it.uppercase() }
+                }\n${(count / totalEntries * 100).toInt()}%"
+            )
+        } else null
     }
 }
 
@@ -567,4 +593,102 @@ fun DatePickerDialogFunction(
             DatePicker(state = datePickerState)
         }
     )
+}
+
+
+@Composable
+fun MoodPieChart(
+    isVisible: Boolean,
+    moodEntries: List<MoodEntry>,
+    onDismiss: () -> Unit
+) {
+    if (!isVisible) return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Mood Distribution",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Calculate mood counts and percentages
+            val moodCounts = moodEntries
+                .groupBy { it.mood }
+                .mapValues { it.value.size }
+
+            val totalEntries = moodEntries.size.toFloat()
+
+            // Convert to PieData format
+            var data by remember {
+                mutableStateOf(
+                    MoodType.entries.mapNotNull { mood ->
+                        val count = moodCounts[mood] ?: 0
+                        if (count > 0) {
+                            Pie(
+                                data = count.toDouble(),
+                                color = mood.getColor(),
+                                selected = false,
+                                label = "${
+                                    mood.name.lowercase().replaceFirstChar { it.uppercase() }
+                                }\n${(count / totalEntries * 100).toInt()}%"
+                            )
+                        } else null
+                    }
+                )
+            }
+
+            if (data.isNotEmpty()) {
+                PieChart(
+                    modifier = Modifier.size(280.dp),
+                    data = data,
+                    onPieClick = { clickedPie ->
+                        val pieIndex = data.indexOf(clickedPie)
+                        data = data.mapIndexed { mapIndex, pie ->
+                            pie.copy(selected = pieIndex == mapIndex)
+                        }
+                    },
+                    selectedScale = 1.1f,
+                    scaleAnimEnterSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    colorAnimEnterSpec = tween(300),
+                    colorAnimExitSpec = tween(300),
+                    scaleAnimExitSpec = tween(300),
+                    spaceDegreeAnimExitSpec = tween(300),
+                    style = Pie.Style.Fill
+                )
+            } else {
+                Text(
+                    text = "No mood data available yet",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    }
 }

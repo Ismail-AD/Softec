@@ -19,6 +19,8 @@ roomversion="2.6.1"
 hiltNavigationCompose = "1.2.0"
 materialIconsExtended = "1.7.8"
 firebaseFirestore = "25.1.4"
+mpAndroidChart = "v3.1.0"
+ehsannarmanicompose="0.1.2"
 
 generativeai = "0.9.0"
 accompanistPermissions = "0.34.0"
@@ -29,6 +31,7 @@ glide="1.0.0-alpha.5"
 ktor-version = "2.3.7"  # Use a version compatible with your Supabase BOM
 [libraries]
 
+composecharts = { module = "io.github.ehsannarmani:compose-charts", version.ref = "ehsannarmanicompose" }
 
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
@@ -55,6 +58,7 @@ camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.r
 camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
 camera-video = { group = "androidx.camera", name = "camera-video", version.ref = "cameraX" }
 camera-view= { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
+mpandroidchart = { module = "com.github.PhilJay:MPAndroidChart", version.ref = "mpAndroidChart" }
 
 
 

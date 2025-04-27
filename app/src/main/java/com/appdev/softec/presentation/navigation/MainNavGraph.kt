@@ -3,10 +3,14 @@ package com.appdev.softec.presentation.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.material.icons.filled.SupervisedUserCircle
+import androidx.compose.material.icons.filled.TagFaces
+import androidx.compose.material.icons.filled.Task
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -24,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.appdev.softec.presentation.feature.Mood.MoodJournalScreen
+import com.appdev.softec.presentation.feature.Summarizer.SummarizerScreen
 import com.appdev.softec.presentation.feature.setting.CustomizationScreen
 import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.CreateTaskScreen
 import com.appdev.softec.presentation.feature.taskManagement.TaskCreation.TaskCategory
@@ -43,41 +48,41 @@ fun MainScreen(onLogout: () -> Unit = {}) {
     val bottomNavItems = listOf(
         BottomNavItem(
             route = Routes.HomePage.route,
-            icon = { Icon(Icons.Default.Inventory, contentDescription = "Home") },
-            label = "Inventory"
+            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+            label = "Home"
         ),
         BottomNavItem(
             route = Routes.TaskList.route,
-            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Tasks") },
-            label = "Sales"
+            icon = { Icon(Icons.Default.Task, contentDescription = "Tasks") },
+            label = "Tasks"
         ),
         BottomNavItem(
             route = Routes.MoodJournal.route,
-            icon = { Icon(Icons.Default.BarChart, contentDescription = "Reports") },
-            label = "Reports"
+            icon = { Icon(Icons.Default.TagFaces, contentDescription = "Mood") },
+            label = "Mood"
         ),
         BottomNavItem(
-            route = Routes.Calendar.route,
+            route = Routes.Summarize.route,
             icon = {
                 Icon(
-                    Icons.Default.SupervisedUserCircle,
-                    contentDescription = "Mood Journal"
+                    Icons.Default.Summarize,
+                    contentDescription = "Summarize"
                 )
             },
-            label = "Staff"
-        ),
-        BottomNavItem(
-            route = Routes.Settings.route,
-            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-            label = "Settings"
+            label = "Summarizer"
         )
+//        BottomNavItem(
+//            route = Routes.Settings.route,
+//            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+//            label = "Settings"
+//        )
 
     )
 
     Scaffold(
         bottomBar = {
             if (currentRoute !in hideBottomBarRoutes) {
-            BottomNavigation(navController, bottomNavItems)
+                BottomNavigation(navController, bottomNavItems)
             }
         }
     ) { innerPadding ->
@@ -99,13 +104,15 @@ fun MainScreen(onLogout: () -> Unit = {}) {
                 CreateTaskScreen(onNavigateBack = {
                     navController.navigateUp()
                 }, {
-
+                    navController.navigateUp()
                 })
             }
             composable(Routes.HomePage.route) {
                 HomePage()
             }
-
+            composable(Routes.Summarize.route) {
+                SummarizerScreen()
+            }
             composable(Routes.Settings.route) {
                 CustomizationScreen()
             }

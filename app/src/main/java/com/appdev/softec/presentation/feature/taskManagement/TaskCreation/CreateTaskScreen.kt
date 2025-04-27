@@ -402,22 +402,6 @@ fun CreateTaskScreen(
                     }
                 }
             }
-
-            // Processing indicator
-            if (uiState.isProcessingInput) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Processing input...")
-                    }
-                }
-            }
         }
     }
 
@@ -528,7 +512,7 @@ private fun startVoiceRecognition(
  * Handle camera permission request with rationale if needed
  */
 @OptIn(ExperimentalPermissionsApi::class)
-private fun handleCameraPermission(
+fun handleCameraPermission(
     permissionState: com.google.accompanist.permissions.PermissionState,
     onShowRationale: () -> Unit,
     onPermissionGranted: () -> Unit
@@ -553,7 +537,7 @@ private fun handleCameraPermission(
  * Handle microphone permission request with rationale if needed
  */
 @OptIn(ExperimentalPermissionsApi::class)
-private fun handleMicrophonePermission(
+fun handleMicrophonePermission(
     permissionState: com.google.accompanist.permissions.PermissionState,
     onShowRationale: () -> Unit,
     onPermissionGranted: () -> Unit

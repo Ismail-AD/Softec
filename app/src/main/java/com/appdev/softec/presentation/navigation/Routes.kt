@@ -17,6 +17,7 @@ sealed class Routes(val route: String) {
     data object Notes : Routes("notes_screen")
     data object ChecklistGenerator : Routes("checklist_generator_screen")
     data object NotificationCenter : Routes("notification_center_screen")
+    data object Summarize : Routes("summarize_screen")
     data object Settings : Routes("settings_screen")
 
     // Additional utility routes

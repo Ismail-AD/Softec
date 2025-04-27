@@ -167,79 +167,39 @@ class TaskViewModel @Inject constructor(
             }
     }
 
-    private suspend fun detectCategoryFromText(text: String): TaskCategory {
-        try {
-            _uiState.update { it.copy(isProcessingInput = true) }
 
-            // Generate the prompt for Gemini
-            val prompt = """
-                Analyze the following task description and categorize it into exactly one of these categories:
-                GENERAL, WORK, PERSONAL, SHOPPING, HEALTH, EDUCATION, FINANCE, OTHER
-                
-                Task description: "$text"
-                
-                Return only the category name in uppercase without any explanation.
-            """.trimIndent()
-
-            // Make API call to Gemini
-            val response = generativeModel.generateContent(prompt).text?.trim() ?: "GENERAL"
-
-            // Parse the response and return category
-            return try {
-                TaskCategory.valueOf(response)
-            } catch (e: IllegalArgumentException) {
-                // If the response doesn't match a category, fallback to GENERAL
-                TaskCategory.GENERAL
-            } finally {
-                _uiState.update { it.copy(isProcessingInput = false) }
-            }
-        } catch (e: Exception) {
-            _uiState.update {
-                it.copy(
-                    isProcessingInput = false,
-                    errorMessage = "Error detecting category: ${e.localizedMessage}"
-                )
-            }
-            return TaskCategory.GENERAL
-        }
-    }
 
     // New function to extract structured data from natural language input
     private suspend fun processNaturalLanguageInput(text: String): NaturalLanguageResult {
         try {
             // Generate the prompt for Gemini to extract structured data
             val prompt = """
-                Parse the following natural language task description and extract structured information.
-                Task description: "$text"
-                
-                Return a JSON object with these properties:
-                1. "taskText": The core task description without any date/time information
-                2. "dueDate": Date in ISO format (YYYY-MM-DD) if specified, or null if not specified
-                3. "dueTime": Time in 24h format (HH:MM) if specified, or null if not specified
-                4. "priority": Extract priority level if mentioned (HIGH, MEDIUM, LOW), or "MEDIUM" if not specified
-                5. "category": Best matching category from these options: GENERAL, WORK, PERSONAL, SHOPPING, HEALTH, EDUCATION, FINANCE, OTHER
-                
-                Example response format:
-                {
-                  "taskText": "Buy milk",
-                  "dueDate": "2023-05-15",
-                  "dueTime": "09:00",
-                  "priority": "MEDIUM",
-                  "category": "SHOPPING"
-                }
-                
-                If no date is specified but there are relative time words like "tomorrow", "next week", "tonight", convert them to actual dates relative to today.
-                Return ONLY the JSON with no additional text.
-            """.trimIndent()
+            Parse the following natural language task description and extract structured information.
+            Task description: "$text"
+            
+            Return a JSON object with these properties:
+            1. "taskText": The core task description without any date/time information
+            2. "dueDate": Date in ISO format (YYYY-MM-DD) if specified, or null if not specified
+            3. "dueTime": Time in 24h format (HH:MM) if specified, or null if not specified
+            4. "priority": Extract priority level if mentioned (HIGH, MEDIUM, LOW), or "MEDIUM" if not specified
+            5. "category": Best matching category from these options: GENERAL, WORK, PERSONAL, SHOPPING, HEALTH, EDUCATION, FINANCE, OTHER
+        """.trimIndent()
+
+            Log.d("TaskViewModel", "Generated Prompt: $prompt")
 
             // Make API call to Gemini
             val response = generativeModel.generateContent(prompt).text?.trim() ?: return NaturalLanguageResult()
 
-            // Parse the JSON response
-            return try {
-                val jsonResponse = JSONObject(response)
+            Log.d("TaskViewModel", "Gemini API Response: $response")
 
-                // Parse due date string to timestamp if present
+            // Sanitize the response string, removing any unwanted characters (like backticks)
+            val sanitizedResponse = response.replace("```json", "").replace("```", "").trim()
+            Log.d("TaskViewModel", "Gemini API Response SANITIZED: $sanitizedResponse")
+
+            try {
+                // Parse the sanitized response into a JSON object
+                val jsonResponse = JSONObject(sanitizedResponse)
+
                 val dueDateStr = if (jsonResponse.has("dueDate") && !jsonResponse.isNull("dueDate"))
                     jsonResponse.getString("dueDate") else null
                 val dueTimeStr = if (jsonResponse.has("dueTime") && !jsonResponse.isNull("dueTime"))
@@ -248,7 +208,6 @@ class TaskViewModel @Inject constructor(
                 // Calculate timestamp from date and time if present
                 val dueTimestamp = calculateTimestamp(dueDateStr, dueTimeStr)
 
-                // Get category
                 val categoryStr = if (jsonResponse.has("category")) jsonResponse.getString("category") else "GENERAL"
                 val category = try {
                     TaskCategory.valueOf(categoryStr)
@@ -256,22 +215,25 @@ class TaskViewModel @Inject constructor(
                     TaskCategory.GENERAL
                 }
 
-                // Extract core task text
                 val taskText = if (jsonResponse.has("taskText")) jsonResponse.getString("taskText") else text
-                Log.d("CHKAZQ","${taskText}  ${categoryStr}")
+                Log.d("TaskViewModel", "Parsed Task Text: $taskText, Category: $categoryStr")
 
-                NaturalLanguageResult(
+                return NaturalLanguageResult(
                     taskText = taskText,
                     category = category,
                     dueDate = dueTimestamp
                 )
             } catch (e: Exception) {
-                NaturalLanguageResult(taskText = text)
+                Log.e("TaskViewModel", "Error parsing Gemini response: ${e.localizedMessage}")
+                return NaturalLanguageResult(taskText = text)
             }
         } catch (e: Exception) {
+            Log.e("TaskViewModel", "Error processing natural language input: ${e.localizedMessage}")
             return NaturalLanguageResult(taskText = text)
         }
     }
+
+
 
     private fun calculateTimestamp(dateStr: String?, timeStr: String?): Long? {
         if (dateStr == null) return null
@@ -330,6 +292,7 @@ class TaskViewModel @Inject constructor(
                     // First, process natural language to extract structured data
                     val nlpResult = processNaturalLanguageInput(uiState.value.taskText)
 
+                    Log.d("TaskViewModel", "Extracted Task Data: $nlpResult")
                     // Update UI state with the extracted data
                     _uiState.update { currentState ->
                         currentState.copy(
@@ -398,6 +361,13 @@ class TaskViewModel @Inject constructor(
     private fun validateTask(): Boolean {
         if (uiState.value.taskText.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Task description cannot be empty") }
+            return false
+        }
+        if (uiState.value.dueDate == null) {
+            // Notify the user that they need to set the due date
+            _uiState.update {
+                it.copy(errorMessage = "Please set a due date before saving the task.")
+            }
             return false
         }
         return true
